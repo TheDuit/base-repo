@@ -50,6 +50,20 @@ Usuario inicial local:
 
 Fora de `APP_ENV=local`, use uma senha forte em `ADMIN_PASSWORD`.
 
+## Sessao e cookies
+
+A autenticacao usa cookie `HttpOnly` emitido pela API em `POST /api/auth/login`.
+O frontend deve chamar a API com `credentials: "include"`; logout limpa o cookie
+em `POST /api/auth/logout` e a sessao atual pode ser validada em
+`GET /api/auth/session`.
+
+Variaveis opcionais para ajustar o cookie:
+
+- `AUTH_COOKIE_NAME`: nome do cookie. Padrao: `base_system_session`.
+- `AUTH_COOKIE_SECURE`: use `true` em HTTPS/producao. Padrao: `false`.
+- `AUTH_COOKIE_SAME_SITE`: `lax`, `strict` ou `none`. Use `none` com cookie
+  seguro quando Web e API ficarem em sites diferentes.
+
 ## Comandos
 
 ```bash

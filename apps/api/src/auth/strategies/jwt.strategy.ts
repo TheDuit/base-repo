@@ -1,7 +1,10 @@
 import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
+import type { Request } from "express";
 import { ExtractJwt, Strategy } from "passport-jwt";
+
+import { getAuthCookieName } from "../cookie-config";
 
 export type AuthenticatedUser = {
   email?: string;
@@ -17,7 +20,10 @@ export type AuthenticatedUser = {
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor(config: ConfigService) {
     super({
-      jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
+      jwtFromRequest: ExtractJwt.fromExtractors([
+        cookieExtractor(getAuthCookieName(config)),
+        ExtractJwt.fromAuthHeaderAsBearerToken()
+      ]),
       ignoreExpiration: false,
       secretOrKey: config.get<string>("JWT_SECRET", "local-development-secret-change-me")
     });
@@ -33,4 +39,22 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       sessionId: payload.sessionId ?? payload.sid
     };
   }
+}
+
+function cookieExtractor(cookieName: string) {
+  return (request: Request | undefined): string | null => {
+    if (!request?.headers.cookie) {
+      return null;
+    }
+
+    const cookies = request.headers.cookie.split(";");
+    for (const cookie of cookies) {
+      const [name, ...valueParts] = cookie.trim().split("=");
+      if (name === cookieName) {
+        return decodeURIComponent(valueParts.join("="));
+      }
+    }
+
+    return null;
+  };
 }

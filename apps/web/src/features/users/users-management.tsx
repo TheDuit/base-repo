@@ -62,7 +62,7 @@ export function UsersManagement() {
 
     setIsLoading(true);
     const response = await fetch(`${appConfig.apiUrl}/users`, {
-      headers: { Authorization: `Bearer ${session.accessToken}` }
+      credentials: "include"
     });
 
     if (response.status === 401) {
@@ -82,7 +82,7 @@ export function UsersManagement() {
   }, [logout, session]);
 
   useEffect(() => {
-    void loadUsers();
+    void Promise.resolve().then(loadUsers);
   }, [loadUsers]);
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -91,8 +91,8 @@ export function UsersManagement() {
 
     const response = await fetch(`${appConfig.apiUrl}/users`, {
       body: JSON.stringify(form),
+      credentials: "include",
       headers: {
-        Authorization: `Bearer ${session.accessToken}`,
         "Content-Type": "application/json"
       },
       method: "POST"
