@@ -1,0 +1,53 @@
+{
+  "name": "@base-system/api",
+  "version": "0.1.0",
+  "description": "API NestJS generica com autenticacao e usuarios.",
+  "private": true,
+  "scripts": {
+    "dev": "ts-node-dev --respawn --transpile-only src/main.ts",
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "node --test --require ts-node/register/transpile-only \"src/**/*.spec.ts\"",
+    "lint": "eslint \"src/**/*.ts\"",
+    "migration:run": "node -r ts-node/register ../../node_modules/typeorm/cli.js -d src/database/data-source.ts migration:run",
+    "migration:revert": "node -r ts-node/register ../../node_modules/typeorm/cli.js -d src/database/data-source.ts migration:revert",
+    "migration:show": "node -r ts-node/register ../../node_modules/typeorm/cli.js -d src/database/data-source.ts migration:show",
+    "seed:admin": "ts-node --transpile-only src/database/seed-admin.ts",
+    "db:setup": "npm run migration:run && npm run seed:admin"
+  },
+  "dependencies": {
+    "@aws-sdk/client-dynamodb": "^3.1085.0",
+    "@aws-sdk/client-s3": "^3.1085.0",
+    "@aws-sdk/lib-dynamodb": "^3.1085.0",
+    "@nestjs/common": "^11.1.28",
+    "@nestjs/config": "^4.0.4",
+    "@nestjs/core": "^11.1.28",
+    "@nestjs/jwt": "^11.0.2",
+    "@nestjs/passport": "^11.0.5",
+    "@nestjs/platform-express": "^11.1.28",
+    "@nestjs/typeorm": "^11.0.3",
+    "@vendia/serverless-express": "^4.12.6",
+    "class-transformer": "^0.5.1",
+    "class-validator": "^0.15.1",
+    "helmet": "^8.2.0",
+    "passport": "^0.7.0",
+    "passport-jwt": "^4.0.1",
+    "pg": "^8.22.0",
+    "reflect-metadata": "^0.2.2",
+    "rxjs": "^7.8.2",
+    "typeorm": "^0.3.28"
+  },
+  "devDependencies": {
+    "@types/aws-lambda": "^8.10.162",
+    "@types/express": "^5.0.6",
+    "@types/node": "^26.1.1",
+    "@types/passport-jwt": "^4.0.1",
+    "@typescript-eslint/eslint-plugin": "^8.63.0",
+    "@typescript-eslint/parser": "^8.63.0",
+    "eslint": "^9.39.5",
+    "ts-node": "^10.9.2",
+    "ts-node-dev": "^2.0.0",
+    "typescript": "^5.9.3"
+  }
+}

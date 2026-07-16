@@ -1,0 +1,150 @@
+name: Deploy main
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: base-system-dev-main
+  cancel-in-progress: false
+
+env:
+  AWS_REGION: ${{ vars.AWS_REGION }}
+  EXPECTED_AWS_ACCOUNT_ID: ${{ vars.EXPECTED_AWS_ACCOUNT_ID }}
+  NEXT_PUBLIC_API_URL: /api
+  TF_BACKEND_BUCKET: ${{ vars.TF_BACKEND_BUCKET }}
+  TF_BACKEND_KEY: ${{ vars.TF_BACKEND_KEY }}
+  TF_BACKEND_DYNAMODB_TABLE: ${{ vars.TF_BACKEND_DYNAMODB_TABLE }}
+  TF_IN_AUTOMATION: "true"
+  TF_INPUT: "false"
+
+jobs:
+  deploy:
+    name: Build, apply Terraform and publish
+    runs-on: ubuntu-latest
+    environment: dev
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test API
+        run: npm run test
+
+      - name: Check deploy settings
+        run: |
+          set -euo pipefail
+          for name in AWS_REGION EXPECTED_AWS_ACCOUNT_ID TF_BACKEND_BUCKET TF_BACKEND_KEY TF_BACKEND_DYNAMODB_TABLE; do
+            if [ -z "${!name}" ]; then
+              echo "$name must be configured as a GitHub environment or repository variable." >&2
+              exit 1
+            fi
+          done
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_GITHUB_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          allowed-account-ids: ${{ env.EXPECTED_AWS_ACCOUNT_ID }}
+
+      - name: Confirm AWS account
+        run: |
+          set -euo pipefail
+          account_id="$(aws sts get-caller-identity --query Account --output text)"
+          if [ "$account_id" != "$EXPECTED_AWS_ACCOUNT_ID" ]; then
+            echo "Wrong AWS account: expected $EXPECTED_AWS_ACCOUNT_ID, got $account_id" >&2
+            exit 1
+          fi
+          echo "Deploying to AWS account $account_id in $AWS_REGION"
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: 1.9.8
+          terraform_wrapper: false
+
+      - name: Terraform init
+        run: |
+          terraform -chdir=infra/terraform init \
+            -backend-config="bucket=$TF_BACKEND_BUCKET" \
+            -backend-config="key=$TF_BACKEND_KEY" \
+            -backend-config="region=$AWS_REGION" \
+            -backend-config="dynamodb_table=$TF_BACKEND_DYNAMODB_TABLE" \
+            -backend-config="encrypt=true"
+
+      - name: Terraform validate
+        run: |
+          terraform -chdir=infra/terraform fmt -check -recursive
+          terraform -chdir=infra/terraform validate
+
+      - name: Read Terraform outputs
+        run: |
+          set -euo pipefail
+          api_repo="$(terraform -chdir=infra/terraform output -raw api_ecr_repository_url)"
+          echo "API_REPO=$api_repo" >> "$GITHUB_ENV"
+
+      - name: Login to Amazon ECR
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build and push API image
+        run: |
+          set -euo pipefail
+          docker build -f docker/api.prod.Dockerfile -t "$API_REPO:$GITHUB_SHA" .
+          docker push "$API_REPO:$GITHUB_SHA"
+
+      - name: Terraform apply
+        run: |
+          terraform -chdir=infra/terraform plan \
+            -lock-timeout=10m \
+            -var-file=environments/dev.tfvars \
+            -var="expected_aws_account_id=$EXPECTED_AWS_ACCOUNT_ID" \
+            -var="api_image_tag=$GITHUB_SHA" \
+            -out=tfplan
+          terraform -chdir=infra/terraform apply -lock-timeout=10m -auto-approve tfplan
+
+      - name: Build web
+        run: npm run build -w apps/web
+
+      - name: Publish web to S3 and invalidate CloudFront
+        run: |
+          set -euo pipefail
+          web_bucket="$(terraform -chdir=infra/terraform output -raw web_bucket_name)"
+          web_distribution_id="$(terraform -chdir=infra/terraform output -raw web_cloudfront_distribution_id)"
+          web_domain="$(terraform -chdir=infra/terraform output -raw web_cloudfront_domain_name)"
+
+          aws s3 sync apps/web/out "s3://$web_bucket" --delete --region "$AWS_REGION"
+          invalidation_id="$(aws cloudfront create-invalidation \
+            --distribution-id "$web_distribution_id" \
+            --paths "/*" \
+            --query "Invalidation.Id" \
+            --output text)"
+          aws cloudfront wait invalidation-completed \
+            --distribution-id "$web_distribution_id" \
+            --id "$invalidation_id"
+
+          echo "WEB_DOMAIN=$web_domain" >> "$GITHUB_ENV"
+
+      - name: Smoke test
+        run: |
+          set -euo pipefail
+          curl -fsS "https://$WEB_DOMAIN/api/health"
+          curl -fsSI "https://$WEB_DOMAIN/login" > /dev/null

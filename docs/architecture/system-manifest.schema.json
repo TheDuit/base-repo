@@ -1,0 +1,42 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "System Manifest",
+  "type": "object",
+  "required": ["systemName", "displayName", "aws"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "systemName": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1
+    },
+    "description": {
+      "type": "string"
+    },
+    "defaultLocale": {
+      "type": "string"
+    },
+    "aws": {
+      "type": "object",
+      "required": ["projectName", "defaultEnvironment", "defaultRegion"],
+      "additionalProperties": false,
+      "properties": {
+        "projectName": {
+          "type": "string",
+          "pattern": "^[a-z0-9][a-z0-9-]{1,62}$"
+        },
+        "defaultEnvironment": {
+          "type": "string",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "defaultRegion": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}

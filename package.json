@@ -1,0 +1,33 @@
+{
+  "name": "base-system",
+  "version": "0.1.0",
+  "description": "Base generica para novos sistemas web com usuarios, API, containers e Terraform.",
+  "private": true,
+  "license": "UNLICENSED",
+  "packageManager": "npm@10.9.8",
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "docker compose up",
+    "local": "sh scripts/run-local.sh",
+    "local:build": "sh scripts/run-local.sh --build",
+    "local:down": "sh scripts/run-local.sh --down",
+    "local:logs": "sh scripts/run-local.sh --logs",
+    "dev:api": "npm run dev -w apps/api",
+    "dev:web": "npm run dev -w apps/web",
+    "build": "npm run build -ws",
+    "typecheck": "npm run typecheck -ws",
+    "lint": "npm run lint -ws",
+    "test": "npm run test -w apps/api"
+  },
+  "overrides": {
+    "next": {
+      ".": "16.2.10",
+      "postcss": "8.5.10"
+    }
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
