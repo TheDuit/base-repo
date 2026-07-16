@@ -66,8 +66,7 @@ export function AuthenticatedLayout({ children }: { children: ReactNode }) {
           <Button
             color="inherit"
             onClick={() => {
-              logout();
-              router.replace("/login");
+              void logout().finally(() => router.replace("/login"));
             }}
             startIcon={<LogOut size={17} />}
           >

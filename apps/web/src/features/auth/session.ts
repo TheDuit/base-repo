@@ -9,11 +9,9 @@ export type SessionUser = {
 };
 
 export type AuthSession = {
-  accessToken: string;
   displayName: string;
   expiresIn: number;
   sessionId: string;
   systemName: string;
-  tokenType: "Bearer";
   user: SessionUser;
 };

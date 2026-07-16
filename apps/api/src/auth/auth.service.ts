@@ -18,7 +18,7 @@ export class AuthService {
     private readonly usersService: UsersService
   ) {}
 
-  async login(input: LoginDto): Promise<LoginResponseDto> {
+  async login(input: LoginDto): Promise<LoginResponseDto & { accessToken: string }> {
     const user = await this.usersService.validateCredentials(
       input.email,
       input.password
@@ -42,13 +42,27 @@ export class AuthService {
       { expiresIn }
     );
 
+    return {
+      ...LoginResponseDto.create({
+        displayName: this.systemContext.displayName,
+        expiresIn,
+        sessionId,
+        systemName: this.systemContext.systemName,
+        user
+      }),
+      accessToken
+    };
+  }
+
+  async getSession(user: { sessionId?: string; sub: string }): Promise<LoginResponseDto> {
+    const sessionUser = await this.usersService.findById(user.sub);
+
     return LoginResponseDto.create({
-      accessToken,
       displayName: this.systemContext.displayName,
-      expiresIn,
-      sessionId,
+      expiresIn: getJwtExpiresInSeconds(this.config),
+      sessionId: user.sessionId ?? "",
       systemName: this.systemContext.systemName,
-      user
+      user: sessionUser
     });
   }
 }

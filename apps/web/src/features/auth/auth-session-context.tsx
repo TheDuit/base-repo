@@ -17,11 +17,9 @@ type AuthSessionContextValue = {
   isAuthenticated: boolean;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  logout: () => void;
+  logout: () => Promise<void>;
   session: AuthSession | null;
 };
-
-const STORAGE_KEY = `${appConfig.systemName}:auth-session`;
 
 const AuthSessionContext = createContext<AuthSessionContextValue | null>(null);
 
@@ -29,17 +27,29 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<AuthSession | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    const stored = window.localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      setSession(JSON.parse(stored) as AuthSession);
+  const loadSession = useCallback(async () => {
+    const response = await fetch(`${appConfig.apiUrl}/auth/session`, {
+      credentials: "include"
+    });
+
+    if (!response.ok) {
+      setSession(null);
+      return;
     }
-    setIsLoading(false);
+
+    setSession((await response.json()) as AuthSession);
   }, []);
+
+  useEffect(() => {
+    void Promise.resolve().then(() =>
+      loadSession().finally(() => setIsLoading(false))
+    );
+  }, [loadSession]);
 
   const login = useCallback(async (email: string, password: string) => {
     const response = await fetch(`${appConfig.apiUrl}/auth/login`, {
       body: JSON.stringify({ email, password }),
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       method: "POST"
     });
@@ -48,13 +58,14 @@ export function AuthSessionProvider({ children }: { children: ReactNode }) {
       throw new Error("Email ou senha invalidos.");
     }
 
-    const nextSession = (await response.json()) as AuthSession;
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(nextSession));
-    setSession(nextSession);
+    setSession((await response.json()) as AuthSession);
   }, []);
 
-  const logout = useCallback(() => {
-    window.localStorage.removeItem(STORAGE_KEY);
+  const logout = useCallback(async () => {
+    await fetch(`${appConfig.apiUrl}/auth/logout`, {
+      credentials: "include",
+      method: "POST"
+    });
     setSession(null);
   }, []);
 
