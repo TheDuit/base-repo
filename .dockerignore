@@ -1,0 +1,14 @@
+node_modules
+apps/*/node_modules
+.next
+apps/web/.next
+dist
+apps/api/dist
+.git
+.env
+*.log
+*.tsbuildinfo
+apps/web/out
+infra/terraform/.terraform
+infra/terraform/terraform.tfstate*
+infra/terraform/terraform.tfvars

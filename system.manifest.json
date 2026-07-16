@@ -1,0 +1,12 @@
+{
+  "$schema": "./docs/architecture/system-manifest.schema.json",
+  "systemName": "base-system",
+  "displayName": "Base System",
+  "description": "Base generica para novos sistemas web com usuarios, API, containers e Terraform.",
+  "defaultLocale": "pt-BR",
+  "aws": {
+    "projectName": "base-system",
+    "defaultEnvironment": "dev",
+    "defaultRegion": "us-east-1"
+  }
+}
